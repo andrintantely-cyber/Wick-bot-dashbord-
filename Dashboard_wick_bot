@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wick Bot Dashboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #17212b);
+            color: var(--tg-theme-text-color, #ffffff);
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 16px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .status-active {
+            background: #4cd964;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .container {
+            padding: 16px;
+        }
+
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #232e3c);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Balance Section */
+        .balance-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .balance-item {
+            text-align: center;
+            padding: 16px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .balance-label {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 6px;
+        }
+
+        .balance-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .profit { color: #4cd964; }
+        .loss { color: #ff3b30; }
+
+        /* Control Buttons */
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-icon {
+            font-size: 24px;
+        }
+
+        .btn-run {
+            background: linear-gradient(135deg, #4cd964, #5ac777);
+            color: white;
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ff3b30, #ff5449);
+            color: white;
+        }
+
+        .btn-panic {
+            background: linear-gradient(135deg, #ff9500, #ffad33);
+            color: white;
+        }
+
+        .btn-monitor {
+            background: linear-gradient(135deg, #5856d6, #7b79e8);
+            color: white;
+        }
+
+        .btn-refresh {
+            background: rgba(255,255,255,0.1);
+            color: var(--tg-theme-text-color, #ffffff);
+        }
+
+        .btn-status {
+            background: rgba(255,255,255,0.1);
+            color: var(--tg-theme-text-color, #ffffff);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border: none;
+            border-radius: 10px;
+            color: var(--tg-theme-text-color, #ffffff);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Positions List */
+        .position-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .position-item {
+            background: rgba(255,255,255,0.05);
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid transparent;
+        }
+
+        .position-item.long {
+            border-left-color: #4cd964;
+        }
+
+        .position-item.short {
+            border-left-color: #ff3b30;
+        }
+
+        .position-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .position-instrument {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .position-badge {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge-long {
+            background: #4cd964;
+            color: white;
+        }
+
+        .badge-short {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .position-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .detail-item {
+            text-align: center;
+        }
+
+        .detail-label {
+            opacity: 0.6;
+            font-size: 11px;
+            margin-bottom: 3px;
+        }
+
+        .detail-value {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        /* History List */
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .history-action {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .history-time {
+            font-size: 11px;
+            opacity: 0.6;
+        }
+
+        .history-details {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        /* Monitoring Toggle */
+        .monitor-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: rgba(88, 86, 214, 0.1);
+            border-radius: 10px;
+            border: 2px solid rgba(88, 86, 214, 0.3);
+        }
+
+        .monitor-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .monitor-title {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .monitor-desc {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .toggle-switch {
+            width: 50px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #4cd964;
+        }
+
+        .toggle-slider {
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 12px;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            left: 24px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            opacity: 0.5;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            opacity: 0.6;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .quick-btn {
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--tg-theme-text-color, #ffffff);
+            font-size: 12px;
+        }
+
+        .quick-btn:active {
+            opacity: 0.7;
+        }
+
+        .quick-icon {
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🎮 WICK BOT DASHBOARD</h1>
+        <div class="status-badge" id="botStatus">🔴 Arrêté</div>
+    </div>
+
+    <div class="container">
+        <!-- Balance Card -->
+        <div class="card">
+            <div class="card-title">💰 Compte Trading</div>
+            <div class="balance-grid">
+                <div class="balance-item">
+                    <div class="balance-label">Solde</div>
+                    <div class="balance-value" id="balance">---</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">P/L Non Réalisé</div>
+                    <div class="balance-value profit" id="unrealizedPL">---</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="card">
+            <div class="card-title">🎯 Contrôles Trading</div>
+            <div class="control-grid">
+                <button class="control-btn btn-run" onclick="runTrading()">
+                    <span class="btn-icon">🚀</span>
+                    <span>Lancer Trading</span>
+                </button>
+                <button class="control-btn btn-stop" onclick="stopTrading()">
+                    <span class="btn-icon">🛑</span>
+                    <span>Arrêter Trading</span>
+                </button>
+                <button class="control-btn btn-panic" onclick="panicMode()">
+                    <span class="btn-icon">🆘</span>
+                    <span>Fermeture Urgence</span>
+                </button>
+                <button class="control-btn btn-monitor" onclick="toggleMonitor()">
+                    <span class="btn-icon">👁️</span>
+                    <span id="monitorBtnText">Activer Monitoring</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-title">⚡ Actions Rapides</div>
+            <div class="quick-actions">
+                <button class="quick-btn" onclick="refreshAll()">
+                    <span class="quick-icon">🔄</span>
+                    <span>Actualiser</span>
+                </button>
+                <button class="quick-btn" onclick="showBalance()">
+                    <span class="quick-icon">💵</span>
+                    <span>Balance</span>
+                </button>
+                <button class="quick-btn" onclick="showStatus()">
+                    <span class="quick-icon">🔍</span>
+                    <span>État Système</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('positions')">
+                📊 Positions
+            </button>
+            <button class="tab" onclick="switchTab('stats')">
+                📈 Statistiques
+            </button>
+            <button class="tab" onclick="switchTab('history')">
+                📜 Historique
+            </button>
+        </div>
+
+        <!-- Positions Tab -->
+        <div class="tab-content active" id="positionsTab">
+            <div class="card">
+                <div class="card-title">📊 Positions Ouvertes</div>
+                <div class="position-list" id="positionsList">
+                    <div class="loading">⏳ Chargement des positions...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div class="tab-content" id="statsTab">
+            <div class="card">
+                <div class="card-title">📈 Performance Globale</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-label">Trades Total</div>
+                        <div class="stat-value" id="totalTrades">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-label">Win Rate</div>
+                        <div class="stat-value profit" id="winRate">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-label">Profit Total</div>
+                        <div class="stat-value profit" id="totalProfit">$0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-label">P/L Net</div>
+                        <div class="stat-value" id="netPL">$0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monitoring Status -->
+            <div class="card">
+                <div class="card-title">👁️ Monitoring Automatique</div>
+                <div class="monitor-toggle" onclick="toggleMonitorStatus()">
+                    <div class="monitor-label">
+                        <div class="monitor-title">Surveillance Active</div>
+                        <div class="monitor-desc">Notifications en temps réel</div>
+                    </div>
+                    <div class="toggle-switch" id="monitorSwitch">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab-content" id="historyTab">
+            <div class="card">
+                <div class="card-title">📜 Historique des Trades</div>
+                <div class="history-list" id="historyList">
+                    <div class="loading">⏳ Chargement de l'historique...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        let botRunning = false;
+        let monitoringActive = false;
+
+        // Control Functions
+        function runTrading() {
+            sendCommand('run');
+            botRunning = true;
+            updateBotStatus();
+            tg.showAlert('🚀 Trading lancé avec succès !');
+        }
+
+        function stopTrading() {
+            sendCommand('stop');
+            botRunning = false;
+            updateBotStatus();
+            tg.showAlert('🛑 Trading arrêté');
+        }
+
+        function panicMode() {
+            tg.showConfirm('⚠️ ATTENTION : Fermer TOUTES les positions immédiatement ?', (confirmed) => {
+                if (confirmed) {
+                    sendCommand('panic');
+                    tg.showAlert('🚨 Mode panique activé ! Fermeture en cours...');
+                }
+            });
+        }
+
+        function toggleMonitor() {
+            monitoringActive = !monitoringActive;
+            sendCommand('monitor');
+            updateMonitorButton();
+            
+            if (monitoringActive) {
+                tg.showAlert('👁️ Monitoring activé ! Vous recevrez des notifications en temps réel.');
+            } else {
+                tg.showAlert('🔕 Monitoring désactivé');
+            }
+        }
+
+        function toggleMonitorStatus() {
+            monitoringActive = !monitoringActive;
+            sendCommand('monitor');
+            const toggle = document.getElementById('monitorSwitch');
+            toggle.classList.toggle('active');
+            updateMonitorButton();
+        }
+
+        function showBalance() {
+            sendCommand('balance');
+            tg.showAlert('💰 Consultation du solde...');
+        }
+
+        function showStatus() {
+            sendCommand('status');
+            tg.showAlert('🔍 Vérification de l\'état du système...');
+        }
+
+        function refreshAll() {
+            sendCommand('refresh');
+            loadAllData();
+            tg.showAlert('🔄 Actualisation en cours...');
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Load data for the tab
+            if (tabName === 'positions') loadPositions();
+            if (tabName === 'stats') loadStats();
+            if (tabName === 'history') loadHistory();
+        }
+
+        // Update UI Functions
+        function updateBotStatus() {
+            const status = document.getElementById('botStatus');
+            if (botRunning) {
+                status.textContent = '🟢 Actif';
+                status.classList.add('status-active');
+            } else {
+                status.textContent = '🔴 Arrêté';
+                status.classList.remove('status-active');
+            }
+        }
+
+        function updateMonitorButton() {
+            const btn = document.getElementById('monitorBtnText');
+            if (monitoringActive) {
+                btn.textContent = 'Monitoring ON';
+            } else {
+                btn.textContent = 'Activer Monitoring';
+            }
+        }
+
+        // Load Data Functions
+        function loadAllData() {
+            loadBalance();
+            loadPositions();
+            loadStats();
+            loadHistory();
+        }
+
+        function lo
