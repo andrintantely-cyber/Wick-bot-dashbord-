@@ -703,4 +703,156 @@
             loadHistory();
         }
 
-        function lo
+        function loadBalance() {
+            // Simulation - À remplacer par vraies données API
+            const balance = 10000 + Math.random() * 1000;
+            const pl = (Math.random() - 0.5) * 200;
+            
+            document.getElementById('balance').textContent = `$${balance.toFixed(2)}`;
+            
+            const plEl = document.getElementById('unrealizedPL');
+            plEl.textContent = `${pl >= 0 ? '+' : ''}$${pl.toFixed(2)}`;
+            plEl.className = pl >= 0 ? 'balance-value profit' : 'balance-value loss';
+        }
+
+        function loadPositions() {
+            const positions = [
+                {
+                    instrument: 'XAU/USD',
+                    type: 'LONG',
+                    units: 1000,
+                    price: 2048.30,
+                    pl: 28.50
+                },
+                {
+                    instrument: 'XAU/USD',
+                    type: 'SHORT',
+                    units: 500,
+                    price: 2046.10,
+                    pl: -12.30
+                }
+            ];
+
+            const list = document.getElementById('positionsList');
+            
+            if (positions.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📦</div>
+                        <div class="empty-text">Aucune position ouverte</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            positions.forEach(pos => {
+                const typeClass = pos.type === 'LONG' ? 'long' : 'short';
+                const badgeClass = pos.type === 'LONG' ? 'badge-long' : 'badge-short';
+                const plClass = pos.pl >= 0 ? 'profit' : 'loss';
+                const emoji = pos.type === 'LONG' ? '🟢' : '🔴';
+                
+                html += `
+                    <div class="position-item ${typeClass}">
+                        <div class="position-header">
+                            <div class="position-instrument">${pos.instrument}</div>
+                            <div class="position-badge ${badgeClass}">${emoji} ${pos.type}</div>
+                        </div>
+                        <div class="position-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Unités</div>
+                                <div class="detail-value">${pos.units}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Prix</div>
+                                <div class="detail-value">${pos.price}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">P/L</div>
+                                <div class="detail-value ${plClass}">
+                                    ${pos.pl >= 0 ? '+' : ''}$${pos.pl.toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
+        function loadStats() {
+            document.getElementById('totalTrades').textContent = '47';
+            document.getElementById('winRate').textContent = '65%';
+            document.getElementById('totalProfit').textContent = '$1,245.50';
+            document.getElementById('netPL').textContent = '$892.30';
+        }
+
+        function loadHistory() {
+            const history = [
+                { action: 'OPEN', time: '2026-04-10 16:45', instrument: 'XAU/USD', type: 'LONG', units: 1000, price: 2045.50 },
+                { action: 'CLOSE', time: '2026-04-10 16:30', instrument: 'XAU/USD', pl: 28.50, price: 2048.30 },
+                { action: 'OPEN', time: '2026-04-10 15:20', instrument: 'XAU/USD', type: 'SHORT', units: 500, price: 2050.20 },
+                { action: 'CLOSE', time: '2026-04-10 15:10', instrument: 'XAU/USD', pl: -15.20, price: 2049.10 }
+            ];
+
+            const list = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📜</div>
+                        <div class="empty-text">Aucun historique disponible</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            history.forEach(item => {
+                const emoji = item.action === 'OPEN' ? '🆕' : '🔔';
+                const actionClass = item.action === 'OPEN' ? 'profit' : (item.pl >= 0 ? 'profit' : 'loss');
+                
+                let details = '';
+                if (item.action === 'OPEN') {
+                    const typeEmoji = item.type === 'LONG' ? '🟢' : '🔴';
+                    details = `${typeEmoji} ${item.type} | ${item.units} unités @ ${item.price}`;
+                } else {
+                    const plEmoji = item.pl >= 0 ? '✅' : '❌';
+                    details = `${plEmoji} P/L: ${item.pl >= 0 ? '+' : ''}$${item.pl.toFixed(2)} @ ${item.price}`;
+                }
+                
+                html += `
+                    <div class="history-item">
+                        <div class="history-header">
+                            <div class="history-action ${actionClass}">
+                                ${emoji} ${item.action} - ${item.instrument}
+                            </div>
+                            <div class="history-time">${item.time}</div>
+                        </div>
+                        <div class="history-details">${details}</div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
+        // Send Command to Bot
+        function sendCommand(cmd) {
+            tg.sendData(JSON.stringify({ command: cmd }));
+        }
+
+        // Initialize
+        loadAllData();
+
+        // Auto-refresh every 10 seconds when bot is running
+        setInterval(() => {
+            if (botRunning) {
+                loadBalance();
+                loadPositions();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
