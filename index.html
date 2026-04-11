@@ -608,4 +608,128 @@
                     const typeEmoji = item.type === 'LONG' ? '🟢' : '🔴';
                     details = `${typeEmoji} ${item.type} | ${item.units} unités @ ${item.price}`;
                 } else {
-       
+                    const plEmoji = item.pl >= 0 ? '✅' : '❌';
+                    details = `${plEmoji} P/L: ${item.pl >= 0 ? '+' : ''}$${item.pl.toFixed(2)} @ ${item.price}`;
+                }
+                
+                const time = new Date(item.time).toLocaleString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                html += `
+                    <div class="history-item">
+                        <div class="history-header">
+                            <div class="history-action ${actionClass}">
+                                ${emoji} ${item.action} - ${item.instrument}
+                            </div>
+                            <div class="history-time">${time}</div>
+                        </div>
+                        <div class="history-details">${details}</div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
+        // === CONTRÔLES ===
+        
+        function runTrading() {
+            sendCommand('run');
+            botRunning = true;
+            tg.showAlert(' Trading lancé !');
+        }
+
+        function stopTrading() {
+            sendCommand('stop');
+            botRunning = false;
+            tg.showAlert(' Trading arrêté');
+        }
+
+        function panicMode() {
+            tg.showConfirm('⚠️ Fermer TOUTES les positions ?', (confirmed) => {
+                if (confirmed) {
+                    sendCommand('panic');
+                    tg.showAlert(' Mode panique activé !');
+                }
+            });
+        }
+
+        function toggleMonitor() {
+            monitoringActive = !monitoringActive;
+            sendCommand('monitor');
+            const btn = document.getElementById('monitorBtnText');
+            btn.textContent = monitoringActive ? 'Monitoring ON' : 'Activer Monitoring';
+            tg.showAlert(monitoringActive ? '️ Monitoring activé !' : ' Monitoring désactivé');
+        }
+
+        function showBalance() {
+            loadBalance();
+            tg.showAlert(' Balance actualisée !');
+        }
+
+        async function checkStatus() {
+            const ok = await checkApiStatus();
+            tg.showAlert(ok ? '✅ API OANDA connectée !' : '❌ API OANDA déconnectée');
+        }
+
+        function refreshAll() {
+            loadAllData();
+            tg.showAlert(' Actualisation complète...');
+        }
+
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            if (tabName === 'positions') loadPositions();
+            if (tabName === 'stats') loadStats();
+            if (tabName === 'history') loadHistory();
+        }
+
+        function sendCommand(cmd) {
+            tg.sendData(JSON.stringify({ command: cmd }));
+        }
+
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML = `<div class="error-message">⚠️ ${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        // === INITIALISATION ===
+        
+        async function loadAllData() {
+            await checkApiStatus();
+            await loadBalance();
+            await loadPositions();
+        }
+
+        // Lancer au démarrage
+        loadAllData();
+
+        // Auto-refresh toutes les 10 secondes si bot actif
+        setInterval(() => {
+            if (botRunning) {
+                loadBalance();
+                loadPositions();
+            }
+        }, 10000);
+
+        // Vérifier l'API toutes les 30 secondes
+        setInterval(checkApiStatus, 30000);
+    </script>
+</body>
+</html>
